@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tic Tac Toe</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      letter-spacing: 4px;
+      margin-bottom: 16px;
+      color: #e94560;
+    }
+
+    #mode-select {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .mode-btn {
+      padding: 8px 22px;
+      font-size: 0.85rem;
+      letter-spacing: 1px;
+      border: 2px solid #0f3460;
+      border-radius: 8px;
+      background: #16213e;
+      color: #aaa;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .mode-btn.active {
+      border-color: #e94560;
+      color: #fff;
+      background: #0f3460;
+    }
+
+    #difficulty {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .diff-btn {
+      padding: 6px 16px;
+      font-size: 0.78rem;
+      letter-spacing: 1px;
+      border: 2px solid #0f3460;
+      border-radius: 6px;
+      background: #16213e;
+      color: #aaa;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .diff-btn.active {
+      border-color: #a8d8ea;
+      color: #fff;
+      background: #0f3460;
+    }
+
+    #status {
+      font-size: 1.1rem;
+      margin-bottom: 24px;
+      height: 1.5em;
+      color: #a8d8ea;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(3, 110px);
+      grid-template-rows: repeat(3, 110px);
+      gap: 8px;
+    }
+
+    .cell {
+      background: #16213e;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      user-select: none;
+    }
+
+    .cell:hover:not(.taken) {
+      background: #0f3460;
+      transform: scale(1.04);
+    }
+
+    .cell.taken { cursor: default; }
+    .cell.blocked { cursor: not-allowed; }
+
+    .cell.x { color: #e94560; }
+    .cell.o { color: #a8d8ea; }
+
+    .cell.win { background: #0f3460; box-shadow: 0 0 16px #e9456088; }
+
+    #restart {
+      margin-top: 28px;
+      padding: 12px 36px;
+      font-size: 1rem;
+      background: #e94560;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    #restart:hover { background: #c73652; transform: scale(1.04); }
+
+    #score {
+      display: flex;
+      gap: 40px;
+      margin-bottom: 20px;
+      font-size: 1rem;
+    }
+
+    .score-box { text-align: center; }
+    .score-box .label { color: #888; font-size: 0.8rem; letter-spacing: 2px; }
+    .score-box .val { font-size: 1.8rem; font-weight: bold; margin-top: 2px; }
+    .score-box.x .val { color: #e94560; }
+    .score-box.o .val { color: #a8d8ea; }
+    .score-box.draw .val { color: #888; }
+  </style>
+</head>
+<body>
+
+<h1>TIC TAC TOE</h1>
+
+<div id="mode-select">
+  <button class="mode-btn active" data-mode="pvp">2 Players</button>
+  <button class="mode-btn" data-mode="ai">vs AI</button>
+</div>
+
+<div id="difficulty" style="visibility:hidden">
+  <button class="diff-btn" data-diff="easy">Easy</button>
+  <button class="diff-btn active" data-diff="medium">Medium</button>
+  <button class="diff-btn" data-diff="hard">Hard</button>
+</div>
+
+<div id="score">
+  <div class="score-box x"><div class="label" id="labelX">X</div><div class="val" id="scoreX">0</div></div>
+  <div class="score-box draw"><div class="label">DRAW</div><div class="val" id="scoreDraw">0</div></div>
+  <div class="score-box o"><div class="label" id="labelO">O</div><div class="val" id="scoreO">0</div></div>
+</div>
+
+<div id="status">X's turn</div>
+
+<div id="board">
+  <div class="cell" data-i="0"></div>
+  <div class="cell" data-i="1"></div>
+  <div class="cell" data-i="2"></div>
+  <div class="cell" data-i="3"></div>
+  <div class="cell" data-i="4"></div>
+  <div class="cell" data-i="5"></div>
+  <div class="cell" data-i="6"></div>
+  <div class="cell" data-i="7"></div>
+  <div class="cell" data-i="8"></div>
+</div>
+
+<button id="restart">New Game</button>
+
+<script>
+  const WINS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+
+  let board, current, over, scores, mode, difficulty, aiThinking;
+
+  mode = 'pvp';
+  difficulty = 'medium';
+  scores = { X: 0, O: 0, D: 0 };
+
+  // --- AI minimax ---
+
+  function checkWinOn(b, player) {
+    return WINS.some(combo => combo.every(i => b[i] === player));
+  }
+
+  function minimax(b, isMax, alpha, beta) {
+    if (checkWinOn(b, 'O')) return 10;
+    if (checkWinOn(b, 'X')) return -10;
+    const empty = b.reduce((a, v, i) => v ? a : [...a, i], []);
+    if (!empty.length) return 0;
+
+    if (isMax) {
+      let best = -Infinity;
+      for (const i of empty) {
+        b[i] = 'O';
+        best = Math.max(best, minimax(b, false, alpha, beta));
+        b[i] = null;
+        alpha = Math.max(alpha, best);
+        if (beta <= alpha) break;
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (const i of empty) {
+        b[i] = 'X';
+        best = Math.min(best, minimax(b, true, alpha, beta));
+        b[i] = null;
+        beta = Math.min(beta, best);
+        if (beta <= alpha) break;
+      }
+      return best;
+    }
+  }
+
+  function bestMove() {
+    const empty = board.reduce((a, v, i) => v ? a : [...a, i], []);
+
+    if (difficulty === 'easy') {
+      // 80% random
+      if (Math.random() < 0.8) return empty[Math.floor(Math.random() * empty.length)];
+    }
+    if (difficulty === 'medium') {
+      // 40% random
+      if (Math.random() < 0.4) return empty[Math.floor(Math.random() * empty.length)];
+    }
+
+    let best = -Infinity, move = empty[0];
+    for (const i of empty) {
+      board[i] = 'O';
+      const score = minimax(board, false, -Infinity, Infinity);
+      board[i] = null;
+      if (score > best) { best = score; move = i; }
+    }
+    return move;
+  }
+
+  // --- Game logic ---
+
+  function init() {
+    board = Array(9).fill(null);
+    current = 'X';
+    over = false;
+    aiThinking = false;
+    render();
+  }
+
+  function checkWin(player) {
+    return WINS.find(combo => combo.every(i => board[i] === player)) || null;
+  }
+
+  function endGame(winCombo, winner) {
+    over = true;
+    if (winCombo) {
+      winCombo.forEach(i => document.querySelector(`[data-i="${i}"]`).classList.add('win'));
+    }
+    if (winner) {
+      document.getElementById('status').textContent =
+        mode === 'ai' && winner === 'O' ? 'AI wins!' :
+        mode === 'ai' && winner === 'X' ? 'You win!' :
+        `${winner} wins!`;
+      scores[winner]++;
+    } else {
+      document.getElementById('status').textContent = "It's a draw!";
+      scores.D++;
+    }
+    renderScore();
+  }
+
+  function afterMove() {
+    render();
+    const winCombo = checkWin(current);
+    if (winCombo) { endGame(winCombo, current); return true; }
+    if (board.every(v => v)) { endGame(null, null); return true; }
+    return false;
+  }
+
+  function aiMove() {
+    aiThinking = true;
+    setBlocked(true);
+    document.getElementById('status').textContent = 'AI is thinking...';
+    setTimeout(() => {
+      const i = bestMove();
+      board[i] = 'O';
+      aiThinking = false;
+      setBlocked(false);
+      current = 'O';
+      if (!afterMove()) {
+        current = 'X';
+        render();
+      }
+    }, 350);
+  }
+
+  function setBlocked(on) {
+    document.querySelectorAll('.cell').forEach(c => {
+      if (on) c.classList.add('blocked');
+      else c.classList.remove('blocked');
+    });
+  }
+
+  function handleClick(e) {
+    const cell = e.target.closest('.cell');
+    if (!cell || over || aiThinking) return;
+    const i = +cell.dataset.i;
+    if (board[i]) return;
+
+    board[i] = current;
+    if (!afterMove()) {
+      current = current === 'X' ? 'O' : 'X';
+      render();
+      if (mode === 'ai' && current === 'O' && !over) aiMove();
+    }
+  }
+
+  function render() {
+    document.querySelectorAll('.cell').forEach((cell, i) => {
+      cell.textContent = board[i] || '';
+      cell.className = 'cell' + (board[i] ? ' taken ' + board[i].toLowerCase() : '');
+    });
+    if (!over) {
+      const label = mode === 'ai'
+        ? (current === 'X' ? "Your turn (X)" : "AI's turn (O)")
+        : `${current}'s turn`;
+      document.getElementById('status').textContent = label;
+    }
+    renderScore();
+  }
+
+  function renderScore() {
+    document.getElementById('scoreX').textContent = scores.X;
+    document.getElementById('scoreO').textContent = scores.O;
+    document.getElementById('scoreDraw').textContent = scores.D;
+  }
+
+  function setMode(m) {
+    mode = m;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === m));
+    document.getElementById('difficulty').style.visibility = m === 'ai' ? 'visible' : 'hidden';
+    document.getElementById('labelX').textContent = m === 'ai' ? 'YOU' : 'X';
+    document.getElementById('labelO').textContent = m === 'ai' ? 'AI' : 'O';
+    scores = { X: 0, O: 0, D: 0 };
+    init();
+  }
+
+  function setDifficulty(d) {
+    difficulty = d;
+    document.querySelectorAll('.diff-btn').forEach(b => b.classList.toggle('active', b.dataset.diff === d));
+    scores = { X: 0, O: 0, D: 0 };
+    init();
+  }
+
+  document.getElementById('board').addEventListener('click', handleClick);
+  document.getElementById('restart').addEventListener('click', init);
+  document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+  document.querySelectorAll('.diff-btn').forEach(b => b.addEventListener('click', () => setDifficulty(b.dataset.diff)));
+
+  init();
+</script>
+</body>
+</html>
